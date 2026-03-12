@@ -30,11 +30,17 @@ public function generateResponse(string $prompt, array $history = []): string {
         $contents = [];
         foreach ($history as $msg) $contents[] = ['role' => $msg['sender'] === 'bot' ? 'model' : 'user', 'parts' => [['text' => $msg['message_text']]]];
         $contents[] = ['role' => 'user', 'parts' => [['text' => $prompt]]];
+        
+        $payload = [
+            'system_instruction' => ['parts' => [['text' => 'Отвечай максимально коротко, буквально 1-2 предложения. Это тестовый режим.']]],
+            'contents' => $contents
+        ];
+
         $model = $this->getBestModel();
         $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$this->apiKey}";
         $ch = curl_init($apiUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true); curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['contents' => $contents]));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
         $res = curl_exec($ch); curl_close($ch);
         $result = json_decode($res, true);
