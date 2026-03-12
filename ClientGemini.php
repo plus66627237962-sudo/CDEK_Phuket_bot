@@ -48,4 +48,18 @@ public function generateResponse(string $prompt, array $history = []): string {
         if (!isset($result['candidates'][0]['content']['parts'][0]['text'])) throw new Exception("Gemini API Content Error ({$model}): " . $res);
         return $result['candidates'][0]['content']['parts'][0]['text'];
     }
+
+        public function translate(string $text, string $targetLanguage): string {
+        $prompt = "Translate the following text to {$targetLanguage}. Reply ONLY with the translation without any quotes, notes, or original text. Text: " . $text;
+        $payload = ['contents' => [['role' => 'user', 'parts' => [['text' => $prompt]]]]];
+        $model = $this->getBestModel();
+        $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$this->apiKey}";
+        $ch = curl_init($apiUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true); curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        $res = curl_exec($ch); curl_close($ch);
+        $result = json_decode($res, true);
+        return $result['candidates'][0]['content']['parts'][0]['text'] ?? $text;
+    }
 }

@@ -25,3 +25,10 @@ CREATE TABLE messages (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
 );
+
+
+-- выполнить после создания чтобы четче пропистаь кодировку database.sql (v1.11.0)
+ALTER DATABASE bestsell_chat_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE clients CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE topics CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE messages CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

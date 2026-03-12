@@ -49,14 +49,19 @@ public function handleClientMessage(string $platform, string $externalId, string
         $clientData = $this->getOrCreateClient($platform, $externalId, $clientName);
         $clientId = $clientData['client_id']; $topicId = $clientData['topic_id'];
         $this->logMessage($clientId, 'client', $text);
-        if ($topicId) $this->tg->sendMessage($this->managerGroupId, "Client: " . $text, $topicId);
+        
+        if ($topicId) {
+            $enText = $this->gemini->translate($text, 'English');
+            $this->tg->sendMessage($this->managerGroupId, "👤 " . $text . "\n\n🇬🇧 " . $enText, $topicId);
+        }
+        
         if ($clientData['dialog_state'] === 'bot') {
             $history = $this->getHistory($clientId);
             try {
                 $replyText = $this->gemini->generateResponse($text, $history);
                 $this->tg->sendMessage($externalId, $replyText);
                 $this->logMessage($clientId, 'bot', $replyText);
-                if ($topicId) $this->tg->sendMessage($this->managerGroupId, "Bot: " . $replyText, $topicId);
+                if ($topicId) $this->tg->sendMessage($this->managerGroupId, "🤖 " . $replyText, $topicId);
             } catch (Exception $e) {
                 if ($topicId) $this->tg->sendMessage($this->managerGroupId, "Bot Error: " . $e->getMessage(), $topicId);
             }
@@ -64,14 +69,28 @@ public function handleClientMessage(string $platform, string $externalId, string
     }
 
     public function handleManagerReply(int $telegramTopicId, string $text): void {
-        $stmt = $this->db->prepare("SELECT t.client_id, c.platform, c.external_id FROM topics t JOIN clients c ON t.client_id = c.id WHERE t.telegram_topic_id = ?");
+        $stmt = $this->db->prepare("SELECT t.client_id, t.dialog_state, c.platform, c.external_id FROM topics t JOIN clients c ON t.client_id = c.id WHERE t.telegram_topic_id = ?");
         $stmt->execute([$telegramTopicId]);
         $client = $stmt->fetch(PDO::FETCH_ASSOC);
+        
         if ($client) {
-            $stmt = $this->db->prepare("UPDATE topics SET dialog_state = 'human' WHERE client_id = ?");
-            $stmt->execute([$client['client_id']]);
+            if (trim($text) === '/bot') {
+                $stmt = $this->db->prepare("UPDATE topics SET dialog_state = 'bot' WHERE client_id = ?");
+                $stmt->execute([$client['client_id']]);
+                $this->tg->sendMessage($this->managerGroupId, "System: Bot control restored.", $telegramTopicId);
+                return;
+            }
+
+            if ($client['dialog_state'] !== 'human') {
+                $stmt = $this->db->prepare("UPDATE topics SET dialog_state = 'human' WHERE client_id = ?");
+                $stmt->execute([$client['client_id']]);
+            }
             $this->logMessage($client['client_id'], 'manager', $text);
-            if ($client['platform'] === 'telegram') $this->tg->sendMessage($client['external_id'], $text);
+            
+            if ($client['platform'] === 'telegram') {
+                $ruText = $this->gemini->translate($text, 'Russian');
+                $this->tg->sendMessage($client['external_id'], $text . "\n\n🇷🇺 " . $ruText);
+            }
         }
     }
 }
